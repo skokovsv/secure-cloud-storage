@@ -4,16 +4,14 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
-from app.db import engine, get_db
+from app.db import engine
+from app.deps import CurrentUser, DbSession
 from app.models import User
 from app.schemas import Token, UserCreate, UserOut
 from app.security import create_access_token, hash_password, verify_password
 
 app = FastAPI(title="Secure Cloud Storage")
-
-DbSession = Annotated[Session, Depends(get_db)]
 
 
 @app.get("/health")
@@ -55,3 +53,8 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
     return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+
+
+@app.get("/me", response_model=UserOut)
+def me(current_user: CurrentUser):
+    return current_user

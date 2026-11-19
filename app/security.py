@@ -31,3 +31,16 @@ def create_access_token(user_id: int) -> str:
         "exp": now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decode_access_token(token: str) -> int | None:
+    try:
+        payload = jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITHM],
+            options={"require": ["exp", "sub"]},
+        )
+        return int(payload["sub"])
+    except (jwt.PyJWTError, ValueError):
+        return None
