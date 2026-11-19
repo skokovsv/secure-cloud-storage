@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.db import engine
 from app.deps import CurrentUser, DbSession
 from app.models import User
+from app.ratelimit import limit_login, limit_register
 from app.schemas import Token, UserCreate, UserOut
 from app.security import create_access_token, hash_password, verify_password
 
@@ -26,7 +27,12 @@ def health_db():
     return {"status": "ok"}
 
 
-@app.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/register",
+    response_model=UserOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(limit_register)],
+)
 def register(data: UserCreate, db: DbSession):
     user = User(username=data.username, password_hash=hash_password(data.password))
     db.add(user)
@@ -41,7 +47,7 @@ def register(data: UserCreate, db: DbSession):
     return user
 
 
-@app.post("/login", response_model=Token)
+@app.post("/login", response_model=Token, dependencies=[Depends(limit_login)])
 def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
     user = db.scalar(select(User).where(User.username == form.username))
     if user is None or not verify_password(form.password, user.password_hash):

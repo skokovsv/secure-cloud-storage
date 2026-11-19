@@ -9,7 +9,7 @@ _hasher = PasswordHasher()
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 
 def hash_password(password: str) -> str:
