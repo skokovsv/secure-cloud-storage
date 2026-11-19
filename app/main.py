@@ -1,14 +1,15 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, status
-from sqlalchemy import text
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import engine, get_db
 from app.models import User
-from app.schemas import UserCreate, UserOut
-from app.security import hash_password
+from app.schemas import Token, UserCreate, UserOut
+from app.security import create_access_token, hash_password, verify_password
 
 app = FastAPI(title="Secure Cloud Storage")
 
@@ -40,3 +41,17 @@ def register(data: UserCreate, db: DbSession):
         ) from None
     db.refresh(user)
     return user
+
+
+@app.post("/login", response_model=Token)
+def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession):
+    user = db.scalar(select(User).where(User.username == form.username))
+    if user is None or not verify_password(form.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled")
+    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
